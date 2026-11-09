@@ -1,0 +1,54 @@
+# Levanta todo el sistema:  docker compose up --build
+# Solo el gateway publica un puerto; el resto vive en la red interna.
+
+services:
+  gateway:
+    build: .
+    command: python gateway/gateway.py
+    ports: ["8080:8080"]
+    depends_on: [bff]
+
+  bff:
+    build: .
+    command: python bff/bff.py
+    depends_on: [orquestador]
+
+  orquestador:
+    build: .
+    command: python orquestador/orquestador.py
+    depends_on: [inventario, transportista, tracking]
+
+  inventario:
+    build: .
+    command: python servicios/inventario.py
+    depends_on: [inventario_db]
+
+  transportista:
+    build: .
+    command: python servicios/transportista.py
+    depends_on: [transportista_db]
+
+  tracking:
+    build: .
+    command: python servicios/tracking.py
+    depends_on: [tracking_db]
+
+  inventario_db:
+    image: postgres:16-alpine
+    environment: { POSTGRES_DB: inventario, POSTGRES_USER: app, POSTGRES_PASSWORD: app }
+    volumes: [inventario_data:/var/lib/postgresql/data]
+
+  transportista_db:
+    image: postgres:16-alpine
+    environment: { POSTGRES_DB: transportista, POSTGRES_USER: app, POSTGRES_PASSWORD: app }
+    volumes: [transportista_data:/var/lib/postgresql/data]
+
+  tracking_db:
+    image: postgres:16-alpine
+    environment: { POSTGRES_DB: tracking, POSTGRES_USER: app, POSTGRES_PASSWORD: app }
+    volumes: [tracking_data:/var/lib/postgresql/data]
+
+volumes:
+  inventario_data:
+  transportista_data:
+  tracking_data:
