@@ -29,9 +29,16 @@ services:
     depends_on: [transportista_db]
 
   tracking:
-    build: .
-    command: python servicios/tracking.py
-    depends_on: [tracking_db]
+    build:
+      context: ./src/servicios/tracking
+      dockerfile: Dockerfile
+    container_name: tracking
+    restart: always
+    environment:
+      - DATABASE_URL=postgresql://tracking_user:tracking_password@tracking-db:5432/tracking_db
+    depends_on:
+      tracking-db:
+        condition: service_healthy
 
   inventario_db:
     image: postgres:16-alpine
@@ -43,10 +50,21 @@ services:
     environment: { POSTGRES_DB: transportista, POSTGRES_USER: app, POSTGRES_PASSWORD: app }
     volumes: [transportista_data:/var/lib/postgresql/data]
 
-  tracking_db:
-    image: postgres:16-alpine
-    environment: { POSTGRES_DB: tracking, POSTGRES_USER: app, POSTGRES_PASSWORD: app }
-    volumes: [tracking_data:/var/lib/postgresql/data]
+  tracking-db:
+    image: postgres:15-alpine
+    container_name: tracking-db
+    restart: always
+    environment:
+      POSTGRES_USER: tracking_user
+      POSTGRES_PASSWORD: tracking_password
+      POSTGRES_DB: tracking_db
+    volumes:
+      - tracking_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tracking_user -d tracking_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 volumes:
   inventario_data:
