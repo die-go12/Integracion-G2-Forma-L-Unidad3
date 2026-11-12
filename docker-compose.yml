@@ -4,28 +4,34 @@
 services:
   gateway:
     build: .
-    command: python gateway/gateway.py
-    ports: ["8080:8080"]
-    depends_on: [bff]
+    container_name: api_gateway
+    restart: always
+    command: python src/gateway/gateway.py
+    ports: "8080:8080"
+    environment:
+      - DATABASE_URL=postgresql+psycopg2://postgres:password@db:5104/api_db
+      - SECRET_KEY=f649e631eb0a87e23b0d478151c463e5e60d7c09a0657e90db8f88174388ac0f3807c0f3d698963b381c20ddd4d6d1a3aca4798ba9e4077d71c5706b24c91b4e
+      - PORT=8080
+    depends_on: [bff, api_db]
 
   bff:
     build: .
-    command: python bff/bff.py
+    command: python src/bff/bff.py
     depends_on: [orquestador]
 
   orquestador:
     build: .
-    command: python orquestador/orquestador.py
+    command: python src/orquestador/orquestador.py
     depends_on: [inventario, transportista, tracking]
 
   inventario:
     build: .
-    command: python servicios/inventario.py
+    command: python src/servicios/inventario.py
     depends_on: [inventario_db]
 
   transportista:
     build: .
-    command: python servicios/transportista.py
+    command: python src/servicios/transportista.py
     depends_on: [transportista_db]
 
   tracking:
@@ -70,3 +76,4 @@ volumes:
   inventario_data:
   transportista_data:
   tracking_data:
+  api_data:
