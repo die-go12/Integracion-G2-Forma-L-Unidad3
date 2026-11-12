@@ -3,16 +3,17 @@
 
 services:
   gateway:
-    build: .
+    build:
+      context: ./src/gateway
+      dockerfile: Dockerfile
     container_name: api_gateway
     restart: always
-    command: python src/gateway/gateway.py
-    ports: "8080:8080"
+    ports: ["8000:8000"]
     environment:
-      - DATABASE_URL=postgresql+psycopg2://postgres:password@db:5104/api_db
-      - SECRET_KEY=f649e631eb0a87e23b0d478151c463e5e60d7c09a0657e90db8f88174388ac0f3807c0f3d698963b381c20ddd4d6d1a3aca4798ba9e4077d71c5706b24c91b4e
-      - PORT=8080
-    depends_on: [bff, api_db]
+      DATABASE_URL: postgresql+psycopg2://postgres:password@api_db:5432/api_db
+      SECRET_KEY: f649e631eb0a87e23b0d478151c463e5e60d7c09a0657e90db8f88174388ac0f3807c0f3d698963b381c20ddd4d6d1a3aca4798ba9e4077d71c5706b24c91b4e
+      PORT: 8000
+    depends_on: [api_db]
 
   bff:
     build: .
@@ -41,10 +42,23 @@ services:
     container_name: tracking
     restart: always
     environment:
-      - DATABASE_URL=postgresql://tracking_user:tracking_password@tracking-db:5432/tracking_db
+      DATABASE_URL: postgresql://tracking_user:tracking_password@tracking-db:5432/tracking_db
     depends_on:
       tracking-db:
         condition: service_healthy
+  
+  api_db:
+    image: postgres:16-alpine
+    container_name: api_db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: api_db
+    
+    volumes:
+      - api_data:/var/lib/postgresql/data
+    
 
   inventario_db:
     image: postgres:16-alpine
