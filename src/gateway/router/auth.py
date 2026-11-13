@@ -1,10 +1,11 @@
 from pydantic import BaseModel
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from database import get_db, UserModel
 from auth import verificar_password, crear_token, MINUTOS_EXPIRACION
+from limiter import limiter
 
-router = APIRouter(prefix="v1/auth", tags=["Autenticación"])
+router = APIRouter(prefix="/v1/auth", tags=["Autenticación"])
 
 # Esquemas
 class LoginInput(BaseModel):
@@ -17,7 +18,8 @@ class LoginResponse(BaseModel):
     expires_in: int
     
 @router.post("/login", response_model=LoginResponse)
-def login(data: LoginInput, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def login(request: Request, data: LoginInput, db: Session = Depends(get_db)):
     user = db.query(UserModel).filter(UserModel.username == data.username).first()
     
     if not user or not verificar_password(data.password, user.password_hash):
