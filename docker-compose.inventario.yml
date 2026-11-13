@@ -1,0 +1,28 @@
+services:
+  inventario:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    command: python src/servicios/inventario/main.py
+    ports:
+      - "5001:5001"
+    depends_on:
+      - inventario_db
+    environment:
+      - POSTGRES_USER=app
+      - POSTGRES_PASSWORD=app
+      - DB_HOST=inventario_db
+      - POSTGRES_DB=inventario
+
+  inventario_db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: inventario
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+  
+    volumes:
+      - inventario_data_dev:/var/lib/postgresql/data
+
+volumes:
+  inventario_data_dev:
