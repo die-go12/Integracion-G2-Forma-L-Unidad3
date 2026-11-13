@@ -26,9 +26,12 @@ services:
 
   inventario:
     build: .
-    command: python src/servicios/inventario.py
-    depends_on: [inventario_db]
+    command: python src/servicios/main.py
+    ports:
+      - "5001:5001"
 
+    depends_on: [inventario_db]
+    
   transportista:
     build: .
     command: python src/servicios/transportista.py
