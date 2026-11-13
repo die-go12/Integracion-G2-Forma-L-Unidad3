@@ -26,13 +26,16 @@ services:
     depends_on: [inventario, transportista, tracking]
 
   inventario:
-    build: .
-    command: python src/servicios/main.py
-    ports:
-      - "5001:5001"
+    build: ./src/servicios/inventario
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: inventario
+      DB_HOST: inventario_db
+    depends_on:
+      inventario_db:
+        condition: service_healthy
 
-    depends_on: [inventario_db]
-    
   transportista:
     build: ./src/servicios/transportista
     environment:
@@ -73,6 +76,11 @@ services:
     image: postgres:16-alpine
     environment: { POSTGRES_DB: inventario, POSTGRES_USER: app, POSTGRES_PASSWORD: app }
     volumes: [inventario_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d inventario"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   transportista_db:
     image: postgres:16-alpine
