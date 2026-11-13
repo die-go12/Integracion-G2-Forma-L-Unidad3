@@ -34,9 +34,15 @@ services:
     depends_on: [inventario_db]
     
   transportista:
-    build: .
-    command: python src/servicios/transportista.py
-    depends_on: [transportista_db]
+    build: ./src/servicios/transportista
+    environment:
+      DATABASE_URL: postgresql+psycopg2://app:app@transportista_db:5432/transportista
+      # Fallas inducibles (ver src/servicios/transportista/main.py)
+      TRANSPORTISTA_FALLA: ${TRANSPORTISTA_FALLA:-0}
+      TRANSPORTISTA_LENTO: ${TRANSPORTISTA_LENTO:-0}
+    depends_on:
+      transportista_db:
+        condition: service_healthy
 
   tracking:
     build:
@@ -72,6 +78,11 @@ services:
     image: postgres:16-alpine
     environment: { POSTGRES_DB: transportista, POSTGRES_USER: app, POSTGRES_PASSWORD: app }
     volumes: [transportista_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d transportista"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   tracking-db:
     image: postgres:15-alpine
