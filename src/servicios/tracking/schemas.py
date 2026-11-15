@@ -4,7 +4,7 @@ class GenerarTrackingRequest(BaseModel):
     envio_id: str
 
 class TrackingResponse(BaseModel):
-    envio_id: str
+    envio_id: str 
     codigo_seguimiento: str
     estado: str
 
