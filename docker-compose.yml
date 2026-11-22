@@ -23,6 +23,8 @@ services:
   orquestador:
     build: .
     command: python src/orquestador/orquestador.py
+    environment:
+      PYTHONPATH: /app/src  # para importar el paquete resiliencia
     depends_on: [inventario, transportista, tracking]
 
   inventario:
