@@ -4,11 +4,11 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 import uvicorn
 
-from database import engine, Base, get_db, seed_db, SessionLocal
+from database import engine, get_db, seed_db
 import models
 import schemas
 
-Base.metadata.create_all(bind=engine)
+models.Base.metadata.create_all(bind=engine)
 
 seed_db()
 

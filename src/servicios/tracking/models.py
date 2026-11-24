@@ -1,6 +1,8 @@
 from sqlalchemy import Column, String, DateTime
+from sqlalchemy.orm import declarative_base
 from datetime import datetime
-from database import Base
+
+Base = declarative_base()
 
 class Tracking(Base):
     __tablename__ = "trackings"

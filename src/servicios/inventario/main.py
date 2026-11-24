@@ -3,8 +3,8 @@ from sqlalchemy.orm import Session
 import uvicorn
 
 # Importaciones locales
-from database import engine, Base, get_db, seed_db, SessionLocal
-from models import Producto, Reserva
+from database import engine, get_db, seed_db
+from models import Producto, Reserva, Base
 from schemas import CrearProductoRequest, ReservaRequest, CompensacionRequest
 
 # Crea las tablas físicamente en PostgreSQL al iniciar
