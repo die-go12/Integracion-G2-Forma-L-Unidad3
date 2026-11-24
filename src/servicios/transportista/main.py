@@ -55,6 +55,19 @@ class Retiro(Base):
 Base.metadata.create_all(bind=engine)
 
 
+def seed_db():
+    with SessionLocal() as db:
+        if not db.query(Retiro).first():
+            db.add_all([
+                Retiro(envio_id="ENV-SEED-001", codigo_retiro="RET-SEED0001", estado="AGENDADO"),
+                Retiro(envio_id="ENV-SEED-002", codigo_retiro="RET-SEED0002", estado="CANCELADO"),
+            ])
+            db.commit()
+
+
+seed_db()
+
+
 # --- Esquemas ---
 class RetiroRequest(BaseModel):
     envio_id: str

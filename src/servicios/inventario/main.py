@@ -3,18 +3,14 @@ from sqlalchemy.orm import Session
 import uvicorn
 
 # Importaciones locales
-from database import engine, Base, get_db
+from database import engine, Base, get_db, seed_db, SessionLocal
 from models import Producto, Reserva
 from schemas import CrearProductoRequest, ReservaRequest, CompensacionRequest
 
 # Crea las tablas físicamente en PostgreSQL al iniciar
 Base.metadata.create_all(bind=engine)
 
-# Producto de ejemplo para que el sistema se pueda probar apenas levanta
-with Session(engine) as db:
-    if db.query(Producto).count() == 0:
-        db.add(Producto(nombre="Caja estándar", stock_disponible=100))
-        db.commit()
+seed_db()
 
 app = FastAPI(title="inventario")
 

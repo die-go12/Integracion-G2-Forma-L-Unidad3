@@ -4,11 +4,13 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 import uvicorn
 
-from database import engine, Base, get_db
+from database import engine, Base, get_db, seed_db, SessionLocal
 import models
 import schemas
 
 Base.metadata.create_all(bind=engine)
+
+seed_db()
 
 app = FastAPI(title="tracking")
 
