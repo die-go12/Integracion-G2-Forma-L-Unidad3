@@ -20,6 +20,11 @@ def health():
     return {"service": "tracking", "status": "ok"}
 
 
+@app.get("/trackings", response_model=list[schemas.TrackingResponse])
+def listar_trackings(db: Session = Depends(get_db)):
+    return db.query(models.Tracking).all()
+
+
 @app.post("/generar", response_model=schemas.TrackingResponse, status_code=status.HTTP_201_CREATED)
 def generar_tracking(req: schemas.GenerarTrackingRequest, db: Session = Depends(get_db)):
     # 1. Idempotencia: si ya existe el envio_id, retorna el mismo registro

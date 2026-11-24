@@ -18,6 +18,14 @@ app = FastAPI(title="inventario")
 def health():
     return {"service": "inventario", "status": "ok"}
 
+@app.get("/productos", status_code=status.HTTP_200_OK)
+def listar_productos(db: Session = Depends(get_db)):
+    return db.query(Producto).order_by(Producto.id).all()
+
+@app.get("/reservas", status_code=status.HTTP_200_OK)
+def listar_reservas(db: Session = Depends(get_db)):
+    return db.query(Reserva).all()
+
 @app.post("/productos", status_code=status.HTTP_201_CREATED)
 def crear_producto(req: CrearProductoRequest, db: Session = Depends(get_db)):
     nuevo_producto = Producto(nombre=req.nombre, stock_disponible=req.stock_inicial)

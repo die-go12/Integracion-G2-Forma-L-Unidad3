@@ -90,6 +90,11 @@ def health():
     return {"service": "transportista", "status": "ok", "falla": FALLA, "lento": LENTO}
 
 
+@app.get("/retiros", response_model=list[RetiroResponse])
+def listar_retiros(db: Session = Depends(get_db)):
+    return db.query(Retiro).all()
+
+
 @app.post("/agendar", response_model=RetiroResponse, status_code=status.HTTP_201_CREATED)
 def agendar_retiro(req: RetiroRequest, db: Session = Depends(get_db)):
     if LENTO > 0:
