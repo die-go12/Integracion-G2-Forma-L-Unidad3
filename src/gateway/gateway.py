@@ -13,6 +13,7 @@ from contextlib import asynccontextmanager
 import httpx
 from fastapi import FastAPI, Request, Depends
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.errors import RateLimitExceeded
 import uvicorn
@@ -65,12 +66,24 @@ def health():
 app.include_router(auth.router)
 
 
+# ─── Schemas ─────────────────────────────────────────────────────────────────
+
+class CrearEnvioInput(BaseModel):
+    producto_id: int
+    cantidad: int = Field(gt=0, description="Unidades a enviar (debe ser > 0)")
+    envio_id: str | None = Field(
+        default=None,
+        description="Clave de idempotencia opcional. Si se omite, el orquestador la genera.",
+    )
+
+
 # ─── Proxy hacia el BFF (requiere JWT válido) ────────────────────────────────
 
 async def _proxy(
     request: Request,
     bff_path: str,
     usuario: dict = Depends(obtener_usuario_actual),
+    json_body: dict | None = None,
 ) -> JSONResponse:
     """
     Reenvía la petición autenticada al BFF conservando método, body y
@@ -79,17 +92,17 @@ async def _proxy(
     """
     url = f"{BFF_URL}{bff_path}"
     method = request.method
-    body = await request.body()
+    body = None if json_body is not None else await request.body()
 
     headers = {
-        "Content-Type": request.headers.get("Content-Type", "application/json"),
+        "Content-Type": "application/json",
         "X-User":       usuario.get("username", ""),
         "X-Role":       usuario.get("rol", ""),
     }
 
     try:
         async with httpx.AsyncClient(timeout=TIMEOUT) as client:
-            resp = await client.request(method, url, content=body, headers=headers)
+            resp = await client.request(method, url, content=body, json=json_body, headers=headers)
     except httpx.TimeoutException:
         return JSONResponse(
             status_code=504,
@@ -112,9 +125,13 @@ async def _proxy(
 
 @app.post("/v1/envios", status_code=201)
 @limiter.limit("30/minute")
-async def crear_envio(request: Request, usuario: dict = Depends(obtener_usuario_actual)):
+async def crear_envio(
+    request: Request,
+    body: CrearEnvioInput,
+    usuario: dict = Depends(obtener_usuario_actual),
+):
     """Crea un nuevo envío. Redirige al BFF tras autenticar."""
-    return await _proxy(request, "/envios", usuario)
+    return await _proxy(request, "/envios", usuario, json_body=body.model_dump(exclude_none=True))
 
 
 @app.get("/v1/envios/{envio_id}")
