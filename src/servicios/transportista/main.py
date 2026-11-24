@@ -128,3 +128,12 @@ def cancelar_retiro(req: RetiroRequest, db: Session = Depends(get_db)):
     db.refresh(retiro)
     log.info("envio_id=%s retiro cancelado", req.envio_id)
     return retiro
+
+
+@app.get("/retiros/{envio_id}", response_model=RetiroResponse)
+def consultar_retiro(envio_id: str, db: Session = Depends(get_db)):
+    """Consulta de solo lectura (la usa el BFF). No la afectan las fallas inducibles."""
+    retiro = db.get(Retiro, envio_id)
+    if not retiro:
+        raise HTTPException(status_code=404, detail="Retiro no encontrado")
+    return retiro

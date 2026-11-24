@@ -10,6 +10,12 @@ from schemas import CrearProductoRequest, ReservaRequest, CompensacionRequest
 # Crea las tablas físicamente en PostgreSQL al iniciar
 Base.metadata.create_all(bind=engine)
 
+# Producto de ejemplo para que el sistema se pueda probar apenas levanta
+with Session(engine) as db:
+    if db.query(Producto).count() == 0:
+        db.add(Producto(nombre="Caja estándar", stock_disponible=100))
+        db.commit()
+
 app = FastAPI(title="inventario")
 
 @app.get("/health")

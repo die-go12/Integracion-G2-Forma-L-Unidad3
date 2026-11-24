@@ -24,7 +24,7 @@ services:
     restart: always
     environment:
       ORQUESTADOR_URL: http://orquestador:5004
-      INVENTARIO_URL: http://inventario:5001
+      TRANSPORTISTA_URL: http://transportista:5002
       TRACKING_URL: http://tracking:5003
       PORT: 5005
     depends_on: [orquestador]

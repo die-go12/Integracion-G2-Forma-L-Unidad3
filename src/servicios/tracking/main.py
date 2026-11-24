@@ -71,5 +71,18 @@ def anular_tracking(req: schemas.AnularTrackingRequest, db: Session = Depends(ge
     return tracking
 
 
+@app.get("/tracking/{envio_id}", response_model=schemas.TrackingResponse)
+def consultar_tracking(envio_id: str, db: Session = Depends(get_db)):
+    # Consulta de solo lectura (la usa el BFF)
+    tracking = (
+        db.query(models.Tracking)
+        .filter(models.Tracking.envio_id == envio_id)
+        .first()
+    )
+    if not tracking:
+        raise HTTPException(status_code=404, detail="Tracking no encontrado")
+    return tracking
+
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=5003)

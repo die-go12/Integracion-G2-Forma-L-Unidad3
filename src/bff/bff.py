@@ -8,6 +8,7 @@ Responsabilidades:
   - Exponer un /health y un /resiliencia para observabilidad.
 """
 
+import asyncio
 import os
 import logging
 import sys
@@ -19,10 +20,12 @@ from pydantic import BaseModel, Field
 
 # URLs de los microservicios internos
 ORQUESTADOR_URL = os.getenv("ORQUESTADOR_URL", "http://orquestador:5004")
-INVENTARIO_URL  = os.getenv("INVENTARIO_URL",  "http://inventario:5001")
+TRANSPORTISTA_URL = os.getenv("TRANSPORTISTA_URL", "http://transportista:5002")
 TRACKING_URL    = os.getenv("TRACKING_URL",    "http://tracking:5003")
 
 TIMEOUT = float(os.getenv("BFF_TIMEOUT", "10.0"))
+# Timeout corto para las consultas de detalle: son opcionales y no deben frenar la respuesta
+TIMEOUT_DETALLE = float(os.getenv("BFF_TIMEOUT_DETALLE", "2.0"))
 
 # Logging
 logging.basicConfig(
@@ -80,6 +83,18 @@ def _formatear_envio(raw: dict) -> dict:
         respuesta["modo_degradado"] = raw["fallback"]
 
     return respuesta
+
+
+async def _detalle(url: str) -> dict | None:
+    """Consulta un servicio de dominio. Si no responde o no tiene el dato devuelve None:
+    la respuesta agregada sale igual, con ese campo vacío."""
+    try:
+        async with httpx.AsyncClient(timeout=TIMEOUT_DETALLE) as client:
+            resp = await client.get(url)
+    except httpx.RequestError as exc:
+        logger.warning(f"Detalle no disponible {url} ({type(exc).__name__})")
+        return None
+    return resp.json() if resp.status_code == 200 else None
 
 
 # ─── Endpoints ──────────────────────────────────────────────────────────────
@@ -149,8 +164,8 @@ async def crear_envio(req: CrearEnvioRequest):
 @app.get("/envios/{envio_id}")
 async def consultar_envio(envio_id: str):
     """
-    Consulta el estado de un envío y enriquece la respuesta con
-    datos de tracking cuando el envío está completado.
+    Vista agregada de un envío: junta el estado de la saga (orquestador) con el
+    retiro (Transportista) y el seguimiento (Tracking), consultados en paralelo.
     """
     logger.info(f"Consultar envio_id={envio_id}")
 
@@ -181,6 +196,12 @@ async def consultar_envio(envio_id: str):
         respuesta["pasos_completados"] = raw["pasos"]
     if raw.get("compensaciones"):
         respuesta["compensaciones"] = raw["compensaciones"]
+
+    # Agregación: estado real del retiro y del seguimiento, leído de cada servicio
+    respuesta["retiro"], respuesta["seguimiento"] = await asyncio.gather(
+        _detalle(f"{TRANSPORTISTA_URL}/retiros/{envio_id}"),
+        _detalle(f"{TRACKING_URL}/tracking/{envio_id}"),
+    )
 
     return respuesta
 

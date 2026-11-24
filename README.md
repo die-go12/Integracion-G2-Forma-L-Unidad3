@@ -59,6 +59,8 @@ Respuesta:
 
 ### 2. Crear un envío
 
+Inventario arranca con un producto de ejemplo (`producto_id` 1, stock 100).
+
 ```bash
 curl -X POST http://localhost:8000/v1/envios \
   -H "Authorization: Bearer <JWT>" \
@@ -82,6 +84,23 @@ Respuesta exitosa (201):
 ```bash
 curl http://localhost:8000/v1/envios/ENV-XXXXXXXX \
   -H "Authorization: Bearer <JWT>"
+```
+
+El BFF agrega tres servicios en una sola respuesta: el estado de la saga (Orquestador),
+el retiro (Transportista) y el seguimiento (Tracking). Si Transportista o Tracking no
+responden, su campo llega en `null` y el resto de la respuesta se entrega igual.
+
+```json
+{
+  "envio_id": "ENV-XXXXXXXX",
+  "estado": "COMPLETADO",
+  "mensaje": "Envío creado exitosamente",
+  "codigo_seguimiento": "TRK-XXXXXXXX",
+  "codigo_retiro": "RET-XXXXXXXX",
+  "pasos_completados": ["inventario", "transportista", "tracking"],
+  "retiro": {"envio_id": "ENV-XXXXXXXX", "codigo_retiro": "RET-XXXXXXXX", "estado": "AGENDADO"},
+  "seguimiento": {"envio_id": "ENV-XXXXXXXX", "codigo_seguimiento": "TRK-XXXXXXXX", "estado": "CREADO"}
+}
 ```
 
 ### 4. Ver métricas de resiliencia
