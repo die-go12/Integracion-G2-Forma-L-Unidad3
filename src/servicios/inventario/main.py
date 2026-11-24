@@ -36,7 +36,8 @@ def reservar_inventario(req: ReservaRequest, db: Session = Depends(get_db)):
     if reserva_existente:
         return {"mensaje": f"Reserva {req.saga_id} ya existía.", "estado": reserva_existente.estado}
 
-    producto = db.query(Producto).filter(Producto.id == req.producto_id).first()
+    # with_for_update bloquea la fila: dos reservas simultáneas no leen el mismo stock
+    producto = db.query(Producto).filter(Producto.id == req.producto_id).with_for_update().first()
     if not producto:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
     
@@ -52,14 +53,15 @@ def reservar_inventario(req: ReservaRequest, db: Session = Depends(get_db)):
 
 @app.post("/compensar", status_code=status.HTTP_200_OK)
 def compensar_inventario(req: CompensacionRequest, db: Session = Depends(get_db)):
-    reserva = db.query(Reserva).filter(Reserva.saga_id == req.saga_id).first()
+    # Se bloquea la reserva para que una compensación repetida no devuelva el stock dos veces
+    reserva = db.query(Reserva).filter(Reserva.saga_id == req.saga_id).with_for_update().first()
     if not reserva:
         raise HTTPException(status_code=404, detail="Reserva no encontrada")
     
     if reserva.estado == "COMPENSADA":
         return {"mensaje": "Reserva ya compensada"}
     
-    producto = db.query(Producto).filter(Producto.id == reserva.producto_id).first()
+    producto = db.query(Producto).filter(Producto.id == reserva.producto_id).with_for_update().first()
     if producto:
         producto.stock_disponible += reserva.cantidad
         
