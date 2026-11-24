@@ -16,8 +16,16 @@ services:
     depends_on: [api_db]
 
   bff:
-    build: .
-    command: python src/bff/bff.py
+    build:
+      context: ./src/bff
+      dockerfile: Dockerfile
+    container_name: bff
+    restart: always
+    environment:
+      ORQUESTADOR_URL: http://orquestador:5004
+      INVENTARIO_URL: http://inventario:5001
+      TRACKING_URL: http://tracking:5003
+      PORT: 5005
     depends_on: [orquestador]
 
   orquestador:
