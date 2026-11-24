@@ -13,7 +13,8 @@ services:
       DATABASE_URL: postgresql+psycopg2://postgres:password@api_db:5432/api_db
       SECRET_KEY: f649e631eb0a87e23b0d478151c463e5e60d7c09a0657e90db8f88174388ac0f3807c0f3d698963b381c20ddd4d6d1a3aca4798ba9e4077d71c5706b24c91b4e
       PORT: 8000
-    depends_on: [api_db]
+      BFF_URL: http://bff:5005
+    depends_on: [api_db, bff]
 
   bff:
     build:
