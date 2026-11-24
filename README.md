@@ -120,12 +120,115 @@ curl http://localhost:8000/v1/resiliencia \
 | `GET`  | `/v1/envios/{envio_id}`   | Sí  | Consultar estado de un envío |
 | `GET`  | `/v1/resiliencia`         | Sí  | Métricas de circuit breaker y bulkhead |
 
-## Simular fallas del Transportista
+## Escenarios de falla
+
+Los comandos están pensados para Git Bash o Linux, con el sistema ya levantado.
+Conviene dejar los logs del orquestador abiertos en otra terminal para ver cada paso
+de la saga y cada compensación:
 
 ```bash
-# Falla total
-TRANSPORTISTA_FALLA=1 docker compose up --build
-
-# Respuesta lenta (provoca timeout)
-TRANSPORTISTA_LENTO=3 docker compose up --build
+docker compose logs -f orquestador
 ```
+
+Primero se guarda el token en una variable:
+
+```bash
+TOKEN=$(curl -s -X POST http://localhost:8000/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "Patricio Estrella", "password": "star123"}' \
+  | sed 's/.*"access_token":"\([^"]*\)".*/\1/')
+```
+
+### Escenario 1: camino feliz
+
+```bash
+curl -X POST http://localhost:8000/v1/envios \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"producto_id": 1, "cantidad": 2, "envio_id": "DEMO-1"}'
+```
+
+Responde 201 con estado `COMPLETADO`. Repetir el mismo comando devuelve el mismo
+resultado sin volver a reservar ni agendar (idempotencia por `envio_id`).
+
+### Escenario 2: falla el último paso y se compensa
+
+Se detiene Tracking, que es el paso 3 de la saga:
+
+```bash
+docker compose stop tracking
+
+curl -X POST http://localhost:8000/v1/envios \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"producto_id": 1, "cantidad": 2, "envio_id": "DEMO-2"}'
+```
+
+Responde 503 con estado `COMPENSADO`. En los logs se ve la compensación en orden
+inverso: primero se cancela el retiro en Transportista y después se libera la reserva
+en Inventario. Para comprobar que no quedó nada inconsistente:
+
+```bash
+# El retiro quedó CANCELADO y las compensaciones aparecen en la respuesta
+curl http://localhost:8000/v1/envios/DEMO-2 -H "Authorization: Bearer $TOKEN"
+
+# El stock volvió a su valor anterior y la reserva quedó COMPENSADA
+docker compose exec inventario_db psql -U app -d inventario \
+  -c "select * from productos" -c "select * from reservas"
+
+docker compose start tracking
+```
+
+### Escenario 3: Transportista lento y luego caído
+
+La llamada a Transportista tiene timeout de 2 s, un bulkhead de 3 llamadas simultáneas
+y un circuit breaker que se abre al tercer fallo seguido y espera 10 s antes de reintentar.
+
+**Lento, con un pico de 6 envíos simultáneos:**
+
+```bash
+TRANSPORTISTA_LENTO=5 docker compose up -d transportista
+sleep 5  # espera a que Transportista termine de arrancar
+
+for i in 1 2 3 4 5 6; do
+  curl -s -o /dev/null -w "envio $i: HTTP %{http_code} en %{time_total}s\n" \
+    -X POST http://localhost:8000/v1/envios \
+    -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+    -d "{\"producto_id\": 1, \"cantidad\": 1, \"envio_id\": \"PICO-$i\"}" &
+done; wait
+```
+
+Tres envíos ocupan el bulkhead y fallan por timeout a los 2 s. Los otros tres se
+rechazan de inmediato (`BULKHEAD_SATURADO`) en vez de quedar esperando. Con los tres
+timeouts el circuito pasa a `OPEN`, y un envío nuevo falla al instante con
+`CIRCUIT_BREAKER_ABIERTO`, sin llamar a Transportista. En todos los casos se responde
+con el fallback y la reserva de Inventario se compensa.
+
+```bash
+# Estado del circuito y contadores de rechazos
+curl http://localhost:8000/v1/resiliencia -H "Authorization: Bearer $TOKEN"
+```
+
+**Caído:**
+
+```bash
+docker compose stop transportista
+
+curl -X POST http://localhost:8000/v1/envios \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"producto_id": 1, "cantidad": 1, "envio_id": "CAIDO-1"}'
+```
+
+Responde 503 con estado `COMPENSADO`. Si el circuito sigue abierto por el paso anterior,
+falla al instante (`CIRCUIT_BREAKER_ABIERTO`); si ya se cerró, falla por
+`TRANSPORTISTA_CAIDO`. El gateway sigue respondiendo
+(`curl http://localhost:8000/v1/health`).
+
+**Recuperación:**
+
+```bash
+docker compose up -d transportista
+```
+
+Pasados 10 s el circuito deja pasar una llamada de prueba; si resulta bien vuelve a
+`CLOSED` y los envíos se completan con normalidad.
+
+Transportista también acepta `TRANSPORTISTA_FALLA=1`, que lo hace responder siempre 500.
