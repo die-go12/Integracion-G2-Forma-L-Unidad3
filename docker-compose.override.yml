@@ -1,0 +1,10 @@
+# services:
+#   inventario:
+#     ports:
+#       - "5001:5001"
+#   transportista:
+#     ports:
+#       - "5002:5002"
+#   tracking:
+#     ports:
+#       - "5003:5003"
