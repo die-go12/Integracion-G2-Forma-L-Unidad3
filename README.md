@@ -185,6 +185,20 @@ y un circuit breaker que se abre al tercer fallo seguido y espera 10 s antes de 
 
 **Lento, con un pico de 6 envíos simultáneos:**
 
+La forma más simple es el script `pico.py`, que funciona en cualquier terminal
+(PowerShell, Git Bash o Linux) y solo usa Python estándar:
+
+```bash
+python pico.py
+```
+
+El script pone a Transportista lento, lanza los 6 envíos a la vez, manda un envío
+más con el circuito abierto, muestra `/v1/resiliencia` y al final deja a
+Transportista normal. Cada ejecución usa `envio_id` nuevos, así que se puede
+repetir.
+
+También se puede hacer a mano, desde Git Bash o Linux:
+
 ```bash
 TRANSPORTISTA_LENTO=5 docker compose up -d transportista
 sleep 5  # espera a que Transportista termine de arrancar
