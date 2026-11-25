@@ -59,7 +59,8 @@ Respuesta:
 
 ### 2. Crear un envío
 
-Inventario arranca con un producto de ejemplo (`producto_id` 1, stock 100).
+Inventario arranca con 4 productos de ejemplo. El `producto_id` 1 tiene stock 50, y el 4 tiene
+stock 0, útil para probar el rechazo por falta de stock.
 
 ```bash
 curl -X POST http://localhost:8000/v1/envios \
